@@ -1,0 +1,376 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+    <script src="../../iron-test-helpers/test-helpers.js"></script>
+    <script src="stub.js"></script>
+    <link rel="import" href="../chrome-xhr-request.html">
+  </head>
+  <body>
+
+    <test-fixture id="basic">
+      <template>
+        <chrome-xhr-request></chrome-xhr-request>
+      </template>
+    </test-fixture>
+
+    <script>
+    /* global fixture, assert */
+    suite('basic', function() {
+      const extensionId = 'abc123';
+      var element;
+      setup(function() {
+        element = fixture('basic');
+      });
+
+      test('Sets connected property when connecting to extension', function(done) {
+        var connect = Polymer.dom(element.root).querySelector('chrome-connect');
+        connect.connect(extensionId);
+        setTimeout(function() {
+          assert.isTrue(element.connected);
+          done();
+        }, 60);
+      });
+    });
+
+    suite('_updateLatestRequest()', function() {
+      var element;
+      var request;
+      setup(function() {
+        element = fixture('basic');
+        request = {
+          url: 'http://domain.com',
+          headers: 'x-header: x-value\nx-other: value'
+        };
+      });
+
+      test('Creates a GET request object', function() {
+        request.method = 'GET';
+        element._updateLatestRequest(request);
+        assert.ok(element.latestRequest);
+      });
+
+      test('Creates a GET request object when payload is set', function() {
+        request.method = 'GET';
+        request.payload = 'test';
+        element._updateLatestRequest(request);
+        assert.ok(element.latestRequest);
+      });
+
+      test('Creates a POST request object when payload is set', function() {
+        request.method = 'POST';
+        request.payload = 'test';
+        element._updateLatestRequest(request);
+        assert.ok(element.latestRequest);
+        return element.latestRequest.text()
+        .then(function(text) {
+          assert.equal(text, 'test');
+        });
+      });
+    });
+
+    suite('_readTimeout()', function() {
+      var element;
+      setup(function() {
+        element = fixture('basic');
+      });
+
+      test('Returns promise', function() {
+        var result = element._readTimeout();
+        assert.typeOf(result, 'promise');
+      });
+
+      test('Resolves as number of miliseconds', function() {
+        return element._readTimeout()
+        .then(time => assert.equal(time, 1000));
+      });
+    });
+
+    suite('_transformFile()', function() {
+      var element;
+      var file;
+      setup(function() {
+        element = fixture('basic');
+        file = new Blob(['test'], {type: 'text/plain'});
+      });
+
+      test('Returns promise', function() {
+        var result = element._transformFile(file);
+        assert.typeOf(result, 'promise');
+      });
+
+      test('Resolves as Base64 string', function() {
+        var encoded = 'W29iamVjdCBBcnJheUJ1ZmZlcl0=';
+        return element._transformFile(file)
+        .then(result => assert.equal(result, encoded));
+      });
+    });
+
+    suite('_transformFormData()', function() {
+      var element;
+      var form;
+      setup(function() {
+        element = fixture('basic');
+        var file = new Blob(['test'], {type: 'text/plain'});
+        form = new FormData();
+        form.append('file', file);
+        form.append('text', 'test');
+      });
+
+      test('Returns promise', function() {
+        var result = element._transformFormData(form);
+        assert.typeOf(result, 'promise');
+      });
+
+      test('Resolves as an array', function() {
+        return element._transformFormData(form)
+        .then(result => {
+          assert.typeOf(result, 'array', 'Result is an array');
+          assert.lengthOf(result, 2, 'Result has 2 items');
+        });
+      });
+
+      test('File type is marked as file', function() {
+        return element._transformFormData(form)
+        .then(result => {
+          assert.isTrue(result[0].isFile);
+        });
+      });
+
+      test('File type has name and value as strings', function() {
+        return element._transformFormData(form)
+        .then(result => {
+          assert.typeOf(result[0].name, 'string', 'Name is string');
+          assert.typeOf(result[0].value, 'string', 'Value is string');
+        });
+      });
+
+      test('Text type is not marked as file', function() {
+        return element._transformFormData(form)
+        .then(result => {
+          assert.isFalse(result[1].isFile);
+        });
+      });
+
+      test('Text type has name and value as strings', function() {
+        return element._transformFormData(form)
+        .then(result => {
+          assert.typeOf(result[1].name, 'string', 'Name is string');
+          assert.typeOf(result[1].value, 'string', 'Value is string');
+        });
+      });
+    });
+
+    suite('_serializePayload()', function() {
+      var element;
+      var request;
+      var form;
+      var file;
+      setup(function() {
+        element = fixture('basic');
+        request = {
+          url: 'http://domain.com',
+          headers: 'x-header: x-value\nx-other: value',
+          method: 'POST'
+        };
+        file = new Blob(['test'], {type: 'text/plain'});
+        form = new FormData();
+        form.append('file', file);
+        form.append('text', 'test');
+      });
+
+      test('Replaces File object with string', function() {
+        request.payload = file;
+        return element._serializePayload(request)
+        .then(result => assert.typeOf(result.payload, 'string'));
+      });
+
+      test('Sets type to "file"', function() {
+        request.payload = file;
+        return element._serializePayload(request)
+        .then(result => assert.equal(result.type, 'file'));
+      });
+
+      test('Replaces FormData object with an array', function() {
+        request.payload = form;
+        return element._serializePayload(request)
+        .then(result => assert.typeOf(result.payload, 'array'));
+      });
+
+      test('Sets type to "formdata"', function() {
+        request.payload = form;
+        return element._serializePayload(request)
+        .then(result => assert.equal(result.type, 'formdata'));
+      });
+    });
+
+    suite('_prepareRequest()', function() {
+      var element;
+      var request;
+      var file;
+      setup(function() {
+        element = fixture('basic');
+        request = {
+          url: 'http://domain.com',
+          headers: 'x-header: x-value\nx-other: value',
+          method: 'POST'
+        };
+        file = new Blob(['test'], {type: 'text/plain'});
+      });
+
+      test('Creates a message object', function() {
+        return element._prepareRequest(request, 1000)
+        .then(result => {
+          assert.equal(result.url, request.url, 'URL is set');
+          assert.equal(result.method, request.method, 'Method is set');
+          assert.typeOf(result.headers, 'array', 'Headers is an array');
+          assert.lengthOf(result.headers, 2, 'Headers has two items');
+          assert.equal(result.timeout, 1000, 'timeout is set');
+          assert.equal(result.version, 2, 'version is set');
+        });
+      });
+
+      test('Payload is string', function() {
+        request.payload = file;
+        return element._prepareRequest(request, 1000)
+        .then(result => {
+          assert.typeOf(result.payload, 'string');
+        });
+      });
+    });
+
+    suite('send()', function() {
+      const extensionId = 'abc123';
+      var element;
+      var request;
+      var connect;
+      setup(function(done) {
+        element = fixture('basic');
+        request = {
+          url: 'http://domain.com',
+          headers: 'x-header: x-value\nx-other: value',
+          method: 'GET'
+        };
+        connect = Polymer.dom(element.root).querySelector('chrome-connect');
+        connect.connect(extensionId);
+        setTimeout(function() {
+          done();
+        }, 60);
+      });
+
+      test('Sends the message to the extension', function() {
+        return element.send(request)
+        .then(() => {
+          assert.isTrue(connect.port.calledOnce);
+        });
+      });
+    });
+
+    suite('_processResponse()', function() {
+      const extensionId = 'abc123';
+      var element;
+      var response;
+      var connect;
+      setup(function(done) {
+        element = fixture('basic');
+        response = {
+          response: {
+            headers: 'x-header: x-value\nx-other: value',
+            status: 200,
+            responseText: 'test'
+          },
+          payload: 'proxy-xhr',
+          auth: 'TEST'
+        };
+        connect = Polymer.dom(element.root).querySelector('chrome-connect');
+        connect.connect(extensionId);
+        setTimeout(function() {
+          done();
+        }, 60);
+      });
+
+      test('Fires response-ready custom event', function(done) {
+        var callback = function() {
+          element.removeEventListener('response-ready', callback);
+          done();
+        };
+        element.addEventListener('response-ready', callback);
+        connect.port.onMessage.nofifyListeners(response);
+      });
+
+      test('response-ready custom event contains response data', function(done) {
+        var callback = function(e) {
+          element.removeEventListener('response-ready', callback);
+          let data = e.detail;
+          assert.isTrue(data.isXhr);
+          assert.isTrue(data.response instanceof Object);
+          assert.isTrue(data.request instanceof Object);
+          assert.isUndefined(data.loadingTime);
+          done();
+        };
+        element.addEventListener('response-ready', callback);
+        element._setLatestRequest({});
+        connect.port.onMessage.nofifyListeners(response);
+      });
+
+      test('response-ready event can be canceled', function(done) {
+        var callback = function(e) {
+          element.removeEventListener('response-ready', callback);
+          assert.isTrue(e.cancelable);
+          done();
+        };
+        element.addEventListener('response-ready', callback);
+        connect.port.onMessage.nofifyListeners(response);
+      });
+
+      test('Fires report-response custom event', function(done) {
+        var callback = function() {
+          element.removeEventListener('report-response', callback);
+          done();
+        };
+        element.addEventListener('report-response', callback);
+        connect.port.onMessage.nofifyListeners(response);
+      });
+
+      test('report-response custom event contains response data', function(done) {
+        var callback = function(e) {
+          element.removeEventListener('report-response', callback);
+          let data = e.detail;
+          assert.isTrue(data.isXhr);
+          assert.isTrue(data.response instanceof Object);
+          assert.isTrue(data.request instanceof Object);
+          assert.isUndefined(data.loadingTime);
+          done();
+        };
+        element.addEventListener('report-response', callback);
+        element._setLatestRequest({});
+        connect.port.onMessage.nofifyListeners(response);
+      });
+
+      test('report-response event cannot be canceled', function(done) {
+        var callback = function(e) {
+          element.removeEventListener('report-response', callback);
+          assert.isFalse(e.cancelable);
+          done();
+        };
+        element.addEventListener('report-response', callback);
+        connect.port.onMessage.nofifyListeners(response);
+      });
+    });
+    </script>
+
+  </body>
+</html>
