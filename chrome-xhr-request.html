@@ -115,6 +115,12 @@ https://elements.advancedrestclient.com/elements/request-panel
       });
     },
     /**
+     * Aborts current request task. No response will be reported.
+     */
+    abort: function() {
+      this.aborted = true;
+    },
+    /**
      * Reads the request timeout set in user settings of the application.
      * The timeout is set in Chrome's sync storage as a `requestDefaultTimeout`
      * property.
@@ -267,6 +273,10 @@ https://elements.advancedrestclient.com/elements/request-panel
      * Called when the proxt extension sends a response.
      */
     _onMessage: function(e) {
+      if (this.aborted) {
+        this._setLatestRequest(undefined);
+        return;
+      }
       var msg = e.detail;
       if (!msg || !msg.payload) {
         return;
@@ -281,10 +291,6 @@ https://elements.advancedrestclient.com/elements/request-panel
      * @param {Object} msg Message received from the extension.
      */
     _processResponse: function(msg) {
-      if (this.aborted) {
-        this._setLatestRequest(undefined);
-        return;
-      }
       this._logResult(msg);
       if (msg.error) {
         return this._reportError(msg.error);
