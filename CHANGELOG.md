@@ -1,3 +1,13 @@
+<a name="0.1.3"></a>
+## [0.1.3](https://github.com/advanced-rest-client/chrome-xhr-request/compare/0.1.2...0.1.3) (2017-10-16)
+
+
+### Fix
+
+* Fixes https://github.com/jarrodek/ChromeRestClient/issues/1075 ([6798cecf520abd5e3ca907bf40e1cb876c954e5e](https://github.com/advanced-rest-client/chrome-xhr-request/commit/6798cecf520abd5e3ca907bf40e1cb876c954e5e))
+
+
+
 <a name="0.1.2"></a>
 ## 0.1.2 (2017-10-01)
 
