@@ -284,6 +284,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var element;
       var response;
       var connect;
+      const requestId = 'TEST-id';
       setup(function(done) {
         element = fixture('basic');
         response = {
@@ -295,6 +296,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           payload: 'proxy-xhr',
           auth: 'TEST'
         };
+        element._setRequestId(requestId);
         connect = Polymer.dom(element.root).querySelector('chrome-connect');
         connect.connect(extensionId);
         setTimeout(function() {
@@ -318,6 +320,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert.isTrue(data.isXhr);
           assert.isTrue(data.response instanceof Object);
           assert.isTrue(data.request instanceof Object);
+          assert.equal(data.id, requestId);
           assert.isUndefined(data.loadingTime);
           done();
         };
